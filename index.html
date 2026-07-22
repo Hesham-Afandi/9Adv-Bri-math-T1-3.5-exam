@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 امتحان المتتاليات الحسابية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        body.en-mode { font-family: 'Inter', sans-serif; }
+        .correct { background-color: #dcfce7 !important; border-color: #16a34a !important; }
+        .incorrect { background-color: #fee2e2 !important; border-color: #dc2626 !important; }
+        .formula { font-family: 'Times New Roman', serif; direction: ltr; display: inline-block; font-style: italic; }
+        .timer-warning { color: #dc2626 !important; animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { opacity: 0.7; } }
+        @media print { 
+            .no-print { display: none !important; } 
+            body { background: white; color: black; }
+            .answer-box { display: block !important; color: #166534 !important; }
+            #results-panel { display: block !important; box-shadow: none; border: 2px solid #000; }
+        }
+        .success-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.875rem; }
+        .grade-excellent { background: #dcfce7; color: #166534; }
+        .grade-good { background: #fef3c7; color: #92400e; }
+        .grade-pass { background: #dbeafe; color: #1e40af; }
+        .grade-fail { background: #fee2e2; color: #991b1b; }
+        .lang-switch {
+            position: fixed; top: 16px; left: 16px; z-index: 100;
+            background: white; padding: 6px; border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; gap: 4px;
+            border: 2px solid #8b5cf6;
+        }
+        [dir="ltr"] .lang-switch { left: auto; right: 16px; }
+        .lang-btn {
+            padding: 6px 14px; border-radius: 20px; cursor: pointer; font-weight: bold;
+            transition: all 0.3s; border: none; font-size: 0.875rem;
+            background: transparent; color: #6b7280;
+        }
+        .lang-btn.active { background: #8b5cf6; color: white; box-shadow: 0 2px 6px rgba(139,92,246,0.4); }
+        .lang-btn:hover:not(.active) { background: #f5f3ff; color: #8b5cf6; }
+        .shuffle-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 p-4 md:p-8 min-h-screen">
+
+    <div class="lang-switch no-print">
+        <button type="button" class="lang-btn active" onclick="setLanguage('ar')" id="btn-ar">عربي</button>
+        <button type="button" class="lang-btn" onclick="setLanguage('en')" id="btn-en">EN</button>
+    </div>
+
+    <div id="timer-container" class="max-w-4xl mx-auto mb-4 text-center no-print">
+        <div class="bg-white p-4 rounded-xl shadow-md inline-block border-2 border-purple-100">
+            <span class="text-gray-600 ml-2" data-ar="⏱️ الوقت المتبقي:" data-en="⏱️ Time Remaining:">⏱️ الوقت المتبقي:</span>
+            <span id="timer" class="text-2xl font-bold text-purple-600 font-mono">60:00</span>
+            <span class="shuffle-badge" data-ar="🔀 أسئلة عشوائية" data-en="🔀 Random Questions">🔀 أسئلة عشوائية</span>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto mb-6 flex flex-wrap gap-3 justify-center no-print">
+        <button type="button" onclick="toggleAnswers()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg font-medium transition shadow cursor-pointer" data-ar="👁️ إظهار / إخفاء الإجابات" data-en="👁️ Show / Hide Answers">👁️ إظهار / إخفاء الإجابات</button>
+        <button type="button" onclick="window.print()" class="bg-gray-800 hover:bg-gray-900 text-white px-5 py-2 rounded-lg font-medium transition shadow cursor-pointer" data-ar="🖨️ طباعة / PDF" data-en="🖨️ Print / PDF">🖨️ طباعة / PDF</button>
+        <button type="button" onclick="reshuffleExam()" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-5 py-2 rounded-lg font-medium transition shadow cursor-pointer" data-ar="🔀 إعادة خلط الأسئلة" data-en="🔀 Reshuffle Questions">🔀 إعادة خلط الأسئلة</button>
+    </div>
+
+    <header class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md mb-8 border-r-4 border-purple-600">
+        <div class="text-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2" data-ar="📝 امتحان المتتاليات الحسابية" data-en="📝 Arithmetic Sequences Exam">📝 امتحان المتتاليات الحسابية</h1>
+            <h2 class="text-lg text-purple-600 font-semibold" data-ar="Arithmetic Sequences & Formulas" data-en="Arithmetic Sequences & Formulas">Arithmetic Sequences & Formulas</h2>
+            <p class="text-sm text-gray-600 mt-2" data-ar="امتحان شامل للمفاهيم الأساسية، صيغة الحد النوني، إيجاد القيم، إيجاد رقم الحد n، والتطبيقات الحياتية" data-en="Comprehensive exam on basic concepts, nth term formula, finding values, finding term number n, and real-life applications">امتحان شامل للمفاهيم الأساسية، صيغة الحد النوني، إيجاد القيم، إيجاد رقم الحد n، والتطبيقات الحياتية</p>
+            <p class="text-xs text-purple-600 mt-2 font-semibold" data-ar="⚠️ ملاحظة: يتم خلط ترتيب الأسئلة والخيارات تلقائياً مع كل تحديث للصفحة" data-en="⚠️ Note: Questions and options are randomly shuffled on every page refresh">⚠️ ملاحظة: يتم خلط ترتيب الأسئلة والخيارات تلقائياً مع كل تحديث للصفحة</p>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-center gap-4 text-sm text-gray-600">
+            <span><span data-ar="📅 التاريخ:" data-en="📅 Date:">📅 التاريخ:</span> <input type="date" id="examDate" class="border-b border-gray-400 bg-transparent w-32 text-center"></span>
+            <span><span data-ar="👤 الاسم:" data-en="👤 Name:">👤 الاسم:</span> <input type="text" id="studentName" class="border-b border-gray-400 bg-transparent w-32 text-center" placeholder="Enter name" required></span>
+            <span><span data-ar="🏫 الشعبة:" data-en="🏫 Class:">🏫 الشعبة:</span> <input type="text" id="studentClass" class="border-b border-gray-400 bg-transparent w-28 text-center" placeholder="Class"></span>
+            <span><span data-ar="⏱️ المدة: 60 دقيقة" data-en="⏱️ Duration: 60 min">⏱️ المدة: 60 دقيقة</span></span>
+            <span><span data-ar="📊 المجموع: 50 درجة" data-en="📊 Total: 50 pts">📊 المجموع: 50 درجة</span></span>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto space-y-8" id="exam-content"></main>
+
+    <div class="text-center no-print pb-8 mt-8">
+        <button type="button" onclick="gradeExam()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-lg px-10 py-4 rounded-xl font-bold shadow-xl transition transform hover:scale-105 cursor-pointer" data-ar="📝 تسليم وتصحيح الامتحان" data-en="📝 Submit & Grade Exam">📝 تسليم وتصحيح الامتحان</button>
+    </div>
+
+    <div id="results-panel" class="max-w-4xl mx-auto mt-8 bg-white p-8 rounded-2xl shadow-2xl border-t-4 border-emerald-500 hidden no-print">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6 text-center" data-ar="📊 نتائج الامتحان" data-en="📊 Exam Results">📊 نتائج الامتحان</h2>
+        <div class="grid md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-50 p-4 rounded-xl text-center"><p data-ar="اسم الطالب" data-en="Student Name">اسم الطالب</p><p id="res-name" class="font-bold text-xl text-purple-700">-</p></div>
+            <div class="bg-purple-50 p-4 rounded-xl text-center"><p data-ar="التاريخ" data-en="Date">التاريخ</p><p id="res-date" class="font-bold text-xl text-purple-700">-</p></div>
+            <div class="bg-emerald-50 p-4 rounded-xl text-center"><p data-ar="المجموع" data-en="Score">المجموع</p><p id="res-total" class="font-bold text-3xl text-emerald-600">0 / 50</p></div>
+        </div>
+        <div class="text-center mb-6">
+            <span id="success-badge" class="success-badge grade-excellent">-</span>
+            <p id="success-percent" class="text-4xl font-bold text-emerald-600 mt-2">100%</p>
+            <p class="text-sm text-gray-500" data-ar="نسبة النجاح" data-en="Success Rate">نسبة النجاح</p>
+        </div>
+        <div class="bg-gray-50 p-6 rounded-xl mb-6">
+            <h3 class="font-bold text-lg mb-4 text-gray-800" data-ar="📈 تفصيل الأداء حسب القسم:" data-en="📈 Performance Breakdown:">📈 تفصيل الأداء حسب القسم:</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center"><span class="text-gray-700" data-ar="المفاهيم الأساسية" data-en="Basic Concepts">المفاهيم الأساسية</span><span id="sec1-score" class="font-bold text-purple-600">0/10</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-700" data-ar="صيغة الحد النوني" data-en="Nth Term Formula">صيغة الحد النوني</span><span id="sec2-score" class="font-bold text-purple-600">0/10</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-700" data-ar="إيجاد قيم محددة" data-en="Finding Specific Values">إيجاد قيم محددة</span><span id="sec3-score" class="font-bold text-purple-600">0/10</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-700" data-ar="إيجاد رقم الحد n" data-en="Finding Term Number n">إيجاد رقم الحد n</span><span id="sec4-score" class="font-bold text-purple-600">0/10</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-700" data-ar="التطبيقات الحياتية" data-en="Real-Life Applications">التطبيقات الحياتية</span><span id="sec5-score" class="font-bold text-purple-600">0/10</span></div>
+            </div>
+        </div>
+        <div class="text-center mb-6">
+            <button type="button" id="sendEmailBtn" onclick="sendResultsToEmail()" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-lg px-8 py-3 rounded-xl font-bold shadow-xl transition transform hover:scale-105 cursor-pointer" data-ar="📧 إرسال النتائج للمعلم" data-en="📧 Send Results to Teacher">📧 إرسال النتائج للمعلم</button>
+            <p id="emailStatus" class="text-sm mt-2 text-center font-medium"></p>
+        </div>
+        <div class="flex gap-3 justify-center">
+            <button type="button" onclick="window.print()" class="bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold" data-ar="🖨️ طباعة النتائج" data-en="🖨️ Print Results">🖨️ طباعة النتائج</button>
+        </div>
+    </div>
+
+    <footer class="max-w-4xl mx-auto mt-10 mb-8 text-center text-gray-500 text-sm no-print">
+        © <span data-ar="Arithmetic Sequences" data-en="Arithmetic Sequences">Arithmetic Sequences</span> | Mr. Mohammed Hesham
+    </footer>
+
+<script>
+const PUBLIC_KEY = "Rb3Lq8tXaFmc5YHUH";
+const SERVICE_ID = "service_w15m64i";
+const TEMPLATE_ID = "template_5b0u2tq";
+const TARGET_EMAIL = "mohammedhesham872@gmail.com";
+emailjs.init(PUBLIC_KEY);
+
+const originalExamData = {
+    sections: [
+        {
+            id: 'sec1',
+            title: { ar: '🔹 الجزء الأول: المفاهيم الأساسية', en: '🔹 Part 1: Basic Concepts' },
+            questions: [
+                { q: { ar: 'ما تعريف المتتالية الحسابية (Arithmetic Sequence)؟', en: 'What is the definition of an Arithmetic Sequence?' }, options: [ { ar: 'متتالية يكون الفرق بين كل حدين متتاليين فيها ثابتاً', en: 'A sequence where the difference between consecutive terms is constant' }, { ar: 'متتالية يكون حاصل ضرب حديها ثابتاً', en: 'A sequence where the product of terms is constant' }, { ar: 'متتالية تتضاعف فيها الحدود', en: 'A sequence where terms double' }, { ar: 'متتالية عشوائية الأرقام', en: 'A random sequence of numbers' } ], correct: 0, answer: { ar: 'المتتالية الحسابية: الفرق بين كل حدين متتاليين ثابت', en: 'Arithmetic sequence: difference between consecutive terms is constant' } },
+                { q: { ar: 'ما هو الفرق المشترك (Common Difference - d)؟', en: 'What is the Common Difference (d)?' }, options: [ { ar: 'الثابت الذي يُضاف لكل حد للحصول على الحد التالي', en: 'The constant added to each term to get the next term' }, { ar: 'الحد الأول في المتتالية', en: 'The first term in the sequence' }, { ar: 'مجموع الحدود', en: 'The sum of terms' }, { ar: 'الحد الأخير في المتتالية', en: 'The last term in the sequence' } ], correct: 0, answer: { ar: 'الفرق المشترك d: الثابت الذي يُضاف لكل حد', en: 'Common difference d: the constant added to each term' } },
+                { q: { ar: 'كيف يُحسب الفرق المشترك d؟', en: 'How is the common difference d calculated?' }, options: [ { ar: 'd = a₂ - a₁ (طرح أي حد من الحد الذي يليه)', en: 'd = a₂ - a₁ (subtract any term from the next)' }, { ar: 'd = a₁ + a₂', en: 'd = a₁ + a₂' }, { ar: 'd = a₁ × a₂', en: 'd = a₁ × a₂' }, { ar: 'd = a₁ / a₂', en: 'd = a₁ / a₂' } ], correct: 0, answer: { ar: 'd = a₂ - a₁', en: 'd = a₂ - a₁' } },
+                { q: { ar: 'أي من المتتاليات التالية حسابية؟', en: 'Which of the following is an arithmetic sequence?' }, options: [ { ar: '3, 7, 11, 15, 19', en: '3, 7, 11, 15, 19' }, { ar: '2, 4, 8, 16, 32', en: '2, 4, 8, 16, 32' }, { ar: '1, 4, 9, 16, 25', en: '1, 4, 9, 16, 25' }, { ar: '1, 1, 2, 3, 5', en: '1, 1, 2, 3, 5' } ], correct: 0, answer: { ar: '3, 7, 11, 15, 19 حسابية لأن d = 4', en: '3, 7, 11, 15, 19 is arithmetic because d = 4' } },
+                { q: { ar: 'ما الفرق المشترك في المتتالية 5, 10, 15, 20؟', en: 'What is the common difference in 5, 10, 15, 20?' }, options: [ { ar: '5', en: '5' }, { ar: '10', en: '10' }, { ar: '15', en: '15' }, { ar: '20', en: '20' } ], correct: 0, answer: { ar: 'd = 10 - 5 = 5', en: 'd = 10 - 5 = 5' } },
+                { q: { ar: 'ما الفرق المشترك في المتتالية 20, 15, 10, 5؟', en: 'What is the common difference in 20, 15, 10, 5?' }, options: [ { ar: '-5', en: '-5' }, { ar: '5', en: '5' }, { ar: '10', en: '10' }, { ar: '-10', en: '-10' } ], correct: 0, answer: { ar: 'd = 15 - 20 = -5', en: 'd = 15 - 20 = -5' } },
+                { q: { ar: 'ما الفرق المشترك في المتتالية -3, 1, 5, 9؟', en: 'What is the common difference in -3, 1, 5, 9?' }, options: [ { ar: '4', en: '4' }, { ar: '-4', en: '-4' }, { ar: '2', en: '2' }, { ar: '8', en: '8' } ], correct: 0, answer: { ar: 'd = 1 - (-3) = 4', en: 'd = 1 - (-3) = 4' } },
+                { q: { ar: 'ما الفرق المشترك في المتتالية 100, 90, 80, 70؟', en: 'What is the common difference in 100, 90, 80, 70?' }, options: [ { ar: '-10', en: '-10' }, { ar: '10', en: '10' }, { ar: '20', en: '20' }, { ar: '-20', en: '-20' } ], correct: 0, answer: { ar: 'd = 90 - 100 = -10', en: 'd = 90 - 100 = -10' } },
+                { q: { ar: 'أي من المتتاليات التالية ليست حسابية؟', en: 'Which of the following is NOT arithmetic?' }, options: [ { ar: '2, 4, 8, 16', en: '2, 4, 8, 16' }, { ar: '1, 3, 5, 7', en: '1, 3, 5, 7' }, { ar: '10, 20, 30, 40', en: '10, 20, 30, 40' }, { ar: '5, 10, 15, 20', en: '5, 10, 15, 20' } ], correct: 0, answer: { ar: '2, 4, 8, 16 ليست حسابية (الفرق ليس ثابتاً)', en: '2, 4, 8, 16 is not arithmetic (difference not constant)' } },
+                { q: { ar: 'ما الفرق المشترك في المتتالية 1/2, 1, 3/2, 2؟', en: 'What is the common difference in 1/2, 1, 3/2, 2?' }, options: [ { ar: '1/2', en: '1/2' }, { ar: '1', en: '1' }, { ar: '2', en: '2' }, { ar: '3/2', en: '3/2' } ], correct: 0, answer: { ar: 'd = 1 - 1/2 = 1/2', en: 'd = 1 - 1/2 = 1/2' } }
+            ]
+        },
+        {
+            id: 'sec2',
+            title: { ar: '🔹 الجزء الثاني: صيغة الحد النوني', en: '🔹 Part 2: Nth Term Formula' },
+            questions: [
+                { q: { ar: 'ما صيغة الحد النوني (a_n)؟', en: 'What is the formula for the nth term (a_n)?' }, options: [ { ar: 'a_n = a₁ + (n - 1)d', en: 'a_n = a₁ + (n - 1)d' }, { ar: 'a_n = a₁ × (n - 1)d', en: 'a_n = a₁ × (n - 1)d' }, { ar: 'a_n = a₁ - (n - 1)d', en: 'a_n = a₁ - (n - 1)d' }, { ar: 'a_n = a₁ + nd', en: 'a_n = a₁ + nd' } ], correct: 0, answer: { ar: 'صيغة الحد النوني: a_n = a₁ + (n - 1)d', en: 'Nth term formula: a_n = a₁ + (n - 1)d' } },
+                { q: { ar: 'للمتتالية 2, 5, 8, 11... ما صيغة a_n؟', en: 'For 2, 5, 8, 11... what is a_n?' }, options: [ { ar: 'a_n = 3n - 1', en: 'a_n = 3n - 1' }, { ar: 'a_n = 3n + 1', en: 'a_n = 3n + 1' }, { ar: 'a_n = 2n + 3', en: 'a_n = 2n + 3' }, { ar: 'a_n = 5n - 3', en: 'a_n = 5n - 3' } ], correct: 0, answer: { ar: 'a₁ = 2, d = 3 → a_n = 2 + (n-1)3 = 3n - 1', en: 'a₁ = 2, d = 3 → a_n = 2 + (n-1)3 = 3n - 1' } },
+                { q: { ar: 'للمتتالية -12, -8, -4, 0... ما صيغة a_n؟', en: 'For -12, -8, -4, 0... what is a_n?' }, options: [ { ar: 'a_n = 4n - 16', en: 'a_n = 4n - 16' }, { ar: 'a_n = 4n + 16', en: 'a_n = 4n + 16' }, { ar: 'a_n = -4n - 12', en: 'a_n = -4n - 12' }, { ar: 'a_n = 4n - 12', en: 'a_n = 4n - 12' } ], correct: 0, answer: { ar: 'a₁ = -12, d = 4 → a_n = -12 + (n-1)4 = 4n - 16', en: 'a₁ = -12, d = 4 → a_n = -12 + (n-1)4 = 4n - 16' } },
+                { q: { ar: 'للمتتالية 10, 7, 4, 1... ما صيغة a_n؟', en: 'For 10, 7, 4, 1... what is a_n?' }, options: [ { ar: 'a_n = -3n + 13', en: 'a_n = -3n + 13' }, { ar: 'a_n = 3n + 10', en: 'a_n = 3n + 10' }, { ar: 'a_n = -3n + 10', en: 'a_n = -3n + 10' }, { ar: 'a_n = 3n - 13', en: 'a_n = 3n - 13' } ], correct: 0, answer: { ar: 'a₁ = 10, d = -3 → a_n = 10 + (n-1)(-3) = -3n + 13', en: 'a₁ = 10, d = -3 → a_n = 10 + (n-1)(-3) = -3n + 13' } },
+                { q: { ar: 'للمتتالية 3, 6, 9, 12... ما صيغة a_n؟', en: 'For 3, 6, 9, 12... what is a_n?' }, options: [ { ar: 'a_n = 3n', en: 'a_n = 3n' }, { ar: 'a_n = 3n + 3', en: 'a_n = 3n + 3' }, { ar: 'a_n = 3n - 3', en: 'a_n = 3n - 3' }, { ar: 'a_n = 6n', en: 'a_n = 6n' } ], correct: 0, answer: { ar: 'a₁ = 3, d = 3 → a_n = 3 + (n-1)3 = 3n', en: 'a₁ = 3, d = 3 → a_n = 3 + (n-1)3 = 3n' } },
+                { q: { ar: 'للمتتالية 1, 4, 7, 10... ما صيغة a_n؟', en: 'For 1, 4, 7, 10... what is a_n?' }, options: [ { ar: 'a_n = 3n - 2', en: 'a_n = 3n - 2' }, { ar: 'a_n = 3n + 1', en: 'a_n = 3n + 1' }, { ar: 'a_n = 4n - 3', en: 'a_n = 4n - 3' }, { ar: 'a_n = 3n + 2', en: 'a_n = 3n + 2' } ], correct: 0, answer: { ar: 'a₁ = 1, d = 3 → a_n = 1 + (n-1)3 = 3n - 2', en: 'a₁ = 1, d = 3 → a_n = 1 + (n-1)3 = 3n - 2' } },
+                { q: { ar: 'للمتتالية 5, 9, 13, 17... ما صيغة a_n؟', en: 'For 5, 9, 13, 17... what is a_n?' }, options: [ { ar: 'a_n = 4n + 1', en: 'a_n = 4n + 1' }, { ar: 'a_n = 4n - 1', en: 'a_n = 4n - 1' }, { ar: 'a_n = 5n + 4', en: 'a_n = 5n + 4' }, { ar: 'a_n = 9n - 4', en: 'a_n = 9n - 4' } ], correct: 0, answer: { ar: 'a₁ = 5, d = 4 → a_n = 5 + (n-1)4 = 4n + 1', en: 'a₁ = 5, d = 4 → a_n = 5 + (n-1)4 = 4n + 1' } },
+                { q: { ar: 'للمتتالية -5, -2, 1, 4... ما صيغة a_n؟', en: 'For -5, -2, 1, 4... what is a_n?' }, options: [ { ar: 'a_n = 3n - 8', en: 'a_n = 3n - 8' }, { ar: 'a_n = 3n + 8', en: 'a_n = 3n + 8' }, { ar: 'a_n = -3n - 5', en: 'a_n = -3n - 5' }, { ar: 'a_n = 3n - 5', en: 'a_n = 3n - 5' } ], correct: 0, answer: { ar: 'a₁ = -5, d = 3 → a_n = -5 + (n-1)3 = 3n - 8', en: 'a₁ = -5, d = 3 → a_n = -5 + (n-1)3 = 3n - 8' } },
+                { q: { ar: 'للمتتالية 20, 18, 16, 14... ما صيغة a_n؟', en: 'For 20, 18, 16, 14... what is a_n?' }, options: [ { ar: 'a_n = -2n + 22', en: 'a_n = -2n + 22' }, { ar: 'a_n = 2n + 20', en: 'a_n = 2n + 20' }, { ar: 'a_n = -2n + 20', en: 'a_n = -2n + 20' }, { ar: 'a_n = 2n - 22', en: 'a_n = 2n - 22' } ], correct: 0, answer: { ar: 'a₁ = 20, d = -2 → a_n = 20 + (n-1)(-2) = -2n + 22', en: 'a₁ = 20, d = -2 → a_n = 20 + (n-1)(-2) = -2n + 22' } },
+                { q: { ar: 'للمتتالية 0.42, 0.84, 1.26... ما صيغة f(n)؟', en: 'For 0.42, 0.84, 1.26... what is f(n)?' }, options: [ { ar: 'f(n) = 0.42n', en: 'f(n) = 0.42n' }, { ar: 'f(n) = 0.42n + 0.42', en: 'f(n) = 0.42n + 0.42' }, { ar: 'f(n) = 0.84n', en: 'f(n) = 0.84n' }, { ar: 'f(n) = 0.42n - 0.42', en: 'f(n) = 0.42n - 0.42' } ], correct: 0, answer: { ar: 'a₁ = 0.42, d = 0.42 → f(n) = 0.42 + (n-1)0.42 = 0.42n', en: 'a₁ = 0.42, d = 0.42 → f(n) = 0.42 + (n-1)0.42 = 0.42n' } }
+            ]
+        },
+        {
+            id: 'sec3',
+            title: { ar: '🔹 الجزء الثالث: إيجاد قيم محددة', en: '🔹 Part 3: Finding Specific Values' },
+            questions: [
+                { q: { ar: 'في a_n = 4n - 16، أوجد a_9', en: 'In a_n = 4n - 16, find a_9' }, options: [ { ar: '20', en: '20' }, { ar: '36', en: '36' }, { ar: '16', en: '16' }, { ar: '4' } ], correct: 0, answer: { ar: 'a_9 = 4(9) - 16 = 36 - 16 = 20', en: 'a_9 = 4(9) - 16 = 36 - 16 = 20' } },
+                { q: { ar: 'في a_n = 3n - 1، أوجد a_10', en: 'In a_n = 3n - 1, find a_10' }, options: [ { ar: '29', en: '29' }, { ar: '30', en: '30' }, { ar: '27', en: '27' }, { ar: '31' } ], correct: 0, answer: { ar: 'a_10 = 3(10) - 1 = 30 - 1 = 29', en: 'a_10 = 3(10) - 1 = 30 - 1 = 29' } },
+                { q: { ar: 'في a_n = 2n + 5، أوجد a_15', en: 'In a_n = 2n + 5, find a_15' }, options: [ { ar: '35', en: '35' }, { ar: '30', en: '30' }, { ar: '25', en: '25' }, { ar: '40' } ], correct: 0, answer: { ar: 'a_15 = 2(15) + 5 = 30 + 5 = 35', en: 'a_15 = 2(15) + 5 = 30 + 5 = 35' } },
+                { q: { ar: 'في a_n = -3n + 13، أوجد a_5', en: 'In a_n = -3n + 13, find a_5' }, options: [ { ar: '-2', en: '-2' }, { ar: '2', en: '2' }, { ar: '-15', en: '-15' }, { ar: '28' } ], correct: 0, answer: { ar: 'a_5 = -3(5) + 13 = -15 + 13 = -2', en: 'a_5 = -3(5) + 13 = -15 + 13 = -2' } },
+                { q: { ar: 'في a_n = 5n - 3، أوجد a_25', en: 'In a_n = 5n - 3, find a_25' }, options: [ { ar: '122', en: '122' }, { ar: '125', en: '125' }, { ar: '120', en: '120' }, { ar: '128' } ], correct: 0, answer: { ar: 'a_25 = 5(25) - 3 = 125 - 3 = 122', en: 'a_25 = 5(25) - 3 = 125 - 3 = 122' } },
+                { q: { ar: 'في a_n = n + 10، أوجد a_20', en: 'In a_n = n + 10, find a_20' }, options: [ { ar: '30', en: '30' }, { ar: '20', en: '20' }, { ar: '10', en: '10' }, { ar: '40' } ], correct: 0, answer: { ar: 'a_20 = 20 + 10 = 30', en: 'a_20 = 20 + 10 = 30' } },
+                { q: { ar: 'في a_n = -2n + 22، أوجد a_10', en: 'In a_n = -2n + 22, find a_10' }, options: [ { ar: '2', en: '2' }, { ar: '42', en: '42' }, { ar: '0', en: '0' }, { ar: '20' } ], correct: 0, answer: { ar: 'a_10 = -2(10) + 22 = -20 + 22 = 2', en: 'a_10 = -2(10) + 22 = -20 + 22 = 2' } },
+                { q: { ar: 'في a_n = 3n - 8، أوجد a_4', en: 'In a_n = 3n - 8, find a_4' }, options: [ { ar: '4', en: '4' }, { ar: '12', en: '12' }, { ar: '-4', en: '-4' }, { ar: '20' } ], correct: 0, answer: { ar: 'a_4 = 3(4) - 8 = 12 - 8 = 4', en: 'a_4 = 3(4) - 8 = 12 - 8 = 4' } },
+                { q: { ar: 'في a_n = 4n + 1، أوجد a_7', en: 'In a_n = 4n + 1, find a_7' }, options: [ { ar: '29', en: '29' }, { ar: '28', en: '28' }, { ar: '30', en: '30' }, { ar: '27' } ], correct: 0, answer: { ar: 'a_7 = 4(7) + 1 = 28 + 1 = 29', en: 'a_7 = 4(7) + 1 = 28 + 1 = 29' } },
+                { q: { ar: 'في a_n = 0.42n، أوجد a_10', en: 'In a_n = 0.42n, find a_10' }, options: [ { ar: '4.2', en: '4.2' }, { ar: '42', en: '42' }, { ar: '0.42', en: '0.42' }, { ar: '4.62' } ], correct: 0, answer: { ar: 'a_10 = 0.42(10) = 4.2', en: 'a_10 = 0.42(10) = 4.2' } }
+            ]
+        },
+        {
+            id: 'sec4',
+            title: { ar: '🔹 الجزء الرابع: إيجاد رقم الحد n', en: '🔹 Part 4: Finding Term Number n' },
+            questions: [
+                { q: { ar: 'إذا كانت a_n = 4n - 16 = 32، أوجد n', en: 'If a_n = 4n - 16 = 32, find n' }, options: [ { ar: '12', en: '12' }, { ar: '8', en: '8' }, { ar: '16', en: '16' }, { ar: '4' } ], correct: 0, answer: { ar: '32 = 4n - 16 → 48 = 4n → n = 12', en: '32 = 4n - 16 → 48 = 4n → n = 12' } },
+                { q: { ar: 'إذا كانت a_n = 3n - 1 = 29، أوجد n', en: 'If a_n = 3n - 1 = 29, find n' }, options: [ { ar: '10', en: '10' }, { ar: '9', en: '9' }, { ar: '11', en: '11' }, { ar: '8' } ], correct: 0, answer: { ar: '29 = 3n - 1 → 30 = 3n → n = 10', en: '29 = 3n - 1 → 30 = 3n → n = 10' } },
+                { q: { ar: 'إذا كانت a_n = 2n + 5 = 35، أوجد n', en: 'If a_n = 2n + 5 = 35, find n' }, options: [ { ar: '15', en: '15' }, { ar: '10', en: '10' }, { ar: '20', en: '20' }, { ar: '30' } ], correct: 0, answer: { ar: '35 = 2n + 5 → 30 = 2n → n = 15', en: '35 = 2n + 5 → 30 = 2n → n = 15' } },
+                { q: { ar: 'إذا كانت a_n = 5n - 3 = 47، أوجد n', en: 'If a_n = 5n - 3 = 47, find n' }, options: [ { ar: '10', en: '10' }, { ar: '9', en: '9' }, { ar: '11', en: '11' }, { ar: '8' } ], correct: 0, answer: { ar: '47 = 5n - 3 → 50 = 5n → n = 10', en: '47 = 5n - 3 → 50 = 5n → n = 10' } },
+                { q: { ar: 'إذا كانت a_n = -3n + 13 = -5، أوجد n', en: 'If a_n = -3n + 13 = -5, find n' }, options: [ { ar: '6', en: '6' }, { ar: '5', en: '5' }, { ar: '7', en: '7' }, { ar: '4' } ], correct: 0, answer: { ar: '-5 = -3n + 13 → -18 = -3n → n = 6', en: '-5 = -3n + 13 → -18 = -3n → n = 6' } },
+                { q: { ar: 'إذا كانت a_n = n + 10 = 50، أوجد n', en: 'If a_n = n + 10 = 50, find n' }, options: [ { ar: '40', en: '40' }, { ar: '50', en: '50' }, { ar: '60', en: '60' }, { ar: '30' } ], correct: 0, answer: { ar: '50 = n + 10 → n = 40', en: '50 = n + 10 → n = 40' } },
+                { q: { ar: 'إذا كانت a_n = -2n + 22 = 0، أوجد n', en: 'If a_n = -2n + 22 = 0, find n' }, options: [ { ar: '11', en: '11' }, { ar: '10', en: '10' }, { ar: '22', en: '22' }, { ar: '0' } ], correct: 0, answer: { ar: '0 = -2n + 22 → 2n = 22 → n = 11', en: '0 = -2n + 22 → 2n = 22 → n = 11' } },
+                { q: { ar: 'إذا كانت a_n = 3n - 8 = 22، أوجد n', en: 'If a_n = 3n - 8 = 22, find n' }, options: [ { ar: '10', en: '10' }, { ar: '9', en: '9' }, { ar: '11', en: '11' }, { ar: '8' } ], correct: 0, answer: { ar: '22 = 3n - 8 → 30 = 3n → n = 10', en: '22 = 3n - 8 → 30 = 3n → n = 10' } },
+                { q: { ar: 'إذا كانت a_n = 4n + 1 = 81، أوجد n', en: 'If a_n = 4n + 1 = 81, find n' }, options: [ { ar: '20', en: '20' }, { ar: '19', en: '19' }, { ar: '21', en: '21' }, { ar: '18' } ], correct: 0, answer: { ar: '81 = 4n + 1 → 80 = 4n → n = 20', en: '81 = 4n + 1 → 80 = 4n → n = 20' } },
+                { q: { ar: 'إذا كانت a_n = 0.42n = 4.2، أوجد n', en: 'If a_n = 0.42n = 4.2, find n' }, options: [ { ar: '10', en: '10' }, { ar: '9', en: '9' }, { ar: '11', en: '11' }, { ar: '8' } ], correct: 0, answer: { ar: '4.2 = 0.42n → n = 10', en: '4.2 = 0.42n → n = 10' } }
+            ]
+        },
+        {
+            id: 'sec5',
+            title: { ar: '🔹 الجزء الخامس: التطبيقات الحياتية', en: '🔹 Part 5: Real-Life Applications' },
+            questions: [
+                { q: { ar: 'مدخرات شهرية تبدأ بـ 100 وتزيد 50 شهرياً، كم بعد 6 أشهر؟', en: 'Monthly savings start at 100 and increase by 50 monthly, how much after 6 months?' }, options: [ { ar: '400', en: '400' }, { ar: '350', en: '350' }, { ar: '300', en: '300' }, { ar: '450' } ], correct: 0, answer: { ar: 'a_6 = 100 + (6-1)50 = 100 + 250 = 350 (لكن المجموع = 400)', en: 'a_6 = 100 + (6-1)50 = 350 (but total = 400)' } },
+                { q: { ar: 'قاعة سينما الصف الأول 20 مقعد، ويزيد 2 في كل صف، كم في الصف 10؟', en: 'Cinema first row 20 seats, increases by 2 each row, how many in row 10?' }, options: [ { ar: '38', en: '38' }, { ar: '40', en: '40' }, { ar: '36', en: '36' }, { ar: '42' } ], correct: 0, answer: { ar: 'a_10 = 20 + (10-1)2 = 20 + 18 = 38', en: 'a_10 = 20 + (10-1)2 = 20 + 18 = 38' } },
+                { q: { ar: 'سيارة قطعت 10 كم في الساعة الأولى، وتزيد 5 كم كل ساعة، كم في الساعة 5؟', en: 'Car traveled 10 km in first hour, increases 5 km each hour, how much in hour 5?' }, options: [ { ar: '30', en: '30' }, { ar: '35', en: '35' }, { ar: '25', en: '25' }, { ar: '40' } ], correct: 0, answer: { ar: 'a_5 = 10 + (5-1)5 = 10 + 20 = 30', en: 'a_5 = 10 + (5-1)5 = 10 + 20 = 30' } },
+                { q: { ar: 'تكلفة طوابع 0.42 لكل طابع، كم تكلفة 15 طابع؟', en: 'Stamp cost 0.42 each, what is cost of 15 stamps?' }, options: [ { ar: '6.30', en: '6.30' }, { ar: '6.72', en: '6.72' }, { ar: '5.88', en: '5.88' }, { ar: '7.14' } ], correct: 0, answer: { ar: 'f(15) = 0.42 × 15 = 6.30', en: 'f(15) = 0.42 × 15 = 6.30' } },
+                { q: { ar: 'مصنع ينتج 100 قطعة شهرياً ويزيد 20 شهرياً، كم في الشهر 6؟', en: 'Factory produces 100 pieces monthly, increases 20 monthly, how many in month 6?' }, options: [ { ar: '200', en: '200' }, { ar: '220', en: '220' }, { ar: '180', en: '180' }, { ar: '240' } ], correct: 0, answer: { ar: 'a_6 = 100 + (6-1)20 = 100 + 100 = 200', en: 'a_6 = 100 + (6-1)20 = 100 + 100 = 200' } },
+                { q: { ar: 'موظف راتبه 3000 ويزيد 200 سنوياً، كم بعد 5 سنوات؟', en: 'Employee salary 3000, increases 200 yearly, how much after 5 years?' }, options: [ { ar: '4000', en: '4000' }, { ar: '3800', en: '3800' }, { ar: '4200', en: '4200' }, { ar: '3500' } ], correct: 0, answer: { ar: 'a_5 = 3000 + (5-1)200 = 3000 + 800 = 3800 (لكن بعد 5 سنوات = 4000)', en: 'a_5 = 3000 + (5-1)200 = 3800 (but after 5 years = 4000)' } },
+                { q: { ar: 'حوض ماء يحتوي 50 لتر ويزيد 10 لترات يومياً، كم بعد 7 أيام؟', en: 'Water tank has 50 liters, increases 10 liters daily, how much after 7 days?' }, options: [ { ar: '120', en: '120' }, { ar: '110', en: '110' }, { ar: '130', en: '130' }, { ar: '100' } ], correct: 0, answer: { ar: 'a_7 = 50 + (7-1)10 = 50 + 60 = 110 (لكن بعد 7 أيام = 120)', en: 'a_7 = 50 + (7-1)10 = 110 (but after 7 days = 120)' } },
+                { q: { ar: 'طالب حفظ 10 كلمات اليوم الأول ويزيد 5 كلمات يومياً، كم في اليوم 8؟', en: 'Student memorized 10 words day 1, increases 5 daily, how many on day 8?' }, options: [ { ar: '45', en: '45' }, { ar: '40', en: '40' }, { ar: '50', en: '50' }, { ar: '35' } ], correct: 0, answer: { ar: 'a_8 = 10 + (8-1)5 = 10 + 35 = 45', en: 'a_8 = 10 + (8-1)5 = 10 + 35 = 45' } },
+                { q: { ar: 'متجر يبيع 50 قطعة يومياً ويزيد 10 يومياً، كم في اليوم 10؟', en: 'Store sells 50 items daily, increases 10 daily, how many on day 10?' }, options: [ { ar: '140', en: '140' }, { ar: '150', en: '150' }, { ar: '130', en: '130' }, { ar: '160' } ], correct: 0, answer: { ar: 'a_10 = 50 + (10-1)10 = 50 + 90 = 140', en: 'a_10 = 50 + (10-1)10 = 50 + 90 = 140' } },
+                { q: { ar: 'شجرة طولها 2 م وتزيد 0.5 م سنوياً، كم طولها بعد 10 سنوات؟', en: 'Tree height 2m, increases 0.5m yearly, how tall after 10 years?' }, options: [ { ar: '7', en: '7' }, { ar: '6.5', en: '6.5' }, { ar: '7.5', en: '7.5' }, { ar: '8' } ], correct: 0, answer: { ar: 'a_10 = 2 + (10-1)0.5 = 2 + 4.5 = 6.5 (لكن بعد 10 سنوات = 7)', en: 'a_10 = 2 + (10-1)0.5 = 6.5 (but after 10 years = 7)' } }
+            ]
+        }
+    ]
+};
+
+function shuffleArray(array) { const arr = [...array]; for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+let examData, correctAnswersMap = {}, currentLang = 'ar', timeRemaining = 3600, timerInterval;
+
+function prepareShuffledExam() { examData = JSON.parse(JSON.stringify(originalExamData)); correctAnswersMap = {}; let globalIdx = 0; examData.sections.forEach((section) => { section.questions = shuffleArray(section.questions); section.questions.forEach((q) => { const optionsWithCorrect = q.options.map((opt, idx) => ({ option: opt, isCorrect: idx === q.correct })); const shuffledOptions = shuffleArray(optionsWithCorrect); q.options = shuffledOptions.map(o => o.option); q.correct = shuffledOptions.findIndex(o => o.isCorrect); correctAnswersMap[globalIdx] = String.fromCharCode(97 + q.correct); globalIdx++; }); }); }
+
+function reshuffleExam() { prepareShuffledExam(); renderExam(); document.querySelectorAll('input[type="radio"]:checked').forEach(r => r.checked = false); document.getElementById('results-panel').classList.add('hidden'); document.querySelectorAll('.correct, .incorrect').forEach(el => el.classList.remove('correct', 'incorrect')); alert(currentLang === 'ar' ? '🔀 تم إعادة خلط الأسئلة والخيارات بنجاح!' : '🔀 Questions and options have been reshuffled successfully!'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+function setLanguage(lang) { currentLang = lang; document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'; document.getElementById('btn-ar').classList.toggle('active', lang === 'ar'); document.getElementById('btn-en').classList.toggle('active', lang === 'en'); document.body.classList.toggle('en-mode', lang === 'en'); document.querySelectorAll('[data-ar][data-en]').forEach(el => { el.textContent = el.getAttribute(`data-${lang}`); }); renderExam(); }
+
+function renderExam() { const container = document.getElementById('exam-content'); const labels = { ar: { option: ['أ', 'ب', 'ج', 'د'], answer: '✅ الإجابة:' }, en: { option: ['A', 'B', 'C', 'D'], answer: '✅ Answer:' } }; const lbl = labels[currentLang]; const isRTL = currentLang === 'ar'; let html = ''; let globalIdx = 0; examData.sections.forEach((section) => { html += `<section class="bg-white p-6 rounded-xl shadow-lg"><h2 class="text-xl font-bold mb-4 text-purple-700">${section.title[currentLang]}</h2><ol class="space-y-4 text-sm">`; section.questions.forEach((q) => { const borderSide = isRTL ? 'border-r-4 pr-4' : 'border-l-4 pl-4'; html += `<li class="${borderSide} border-purple-500 py-2" id="q-${globalIdx}"><strong>${globalIdx + 1}.</strong> ${q.q[currentLang]}<br>`; q.options.forEach((opt, oIdx) => { const radioSide = isRTL ? 'mr-4 ml-2' : 'ml-4 mr-2'; html += `<label class="cursor-pointer block mt-1 ${isRTL ? 'mr-4' : 'ml-4'}"><input type="radio" name="q${globalIdx}" value="${String.fromCharCode(97 + oIdx)}" class="${radioSide}">${lbl.option[oIdx]}) ${opt[currentLang]}</label>`; }); html += `<div class="answer-box text-green-700 mt-2 font-medium hidden">${lbl.answer} ${lbl.option[q.correct]}) ${q.options[q.correct][currentLang]} — ${q.answer[currentLang]}</div></li>`; globalIdx++; }); html += `</ol></section>`; }); container.innerHTML = html; }
+
+function startTimer() { timerInterval = setInterval(() => { timeRemaining--; const minutes = Math.floor(timeRemaining / 60); const seconds = timeRemaining % 60; const timerEl = document.getElementById('timer'); timerEl.textContent = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`; if (timeRemaining <= 300) timerEl.classList.add('timer-warning'); if (timeRemaining <= 0) { clearInterval(timerInterval); alert(currentLang === 'ar' ? "انتهى الوقت! سيتم تسليم الامتحان تلقائياً." : "Time's up! Exam will be submitted automatically."); gradeExam(); } }, 1000); }
+
+function toggleAnswers() { document.querySelectorAll('.answer-box').forEach(el => el.classList.toggle('hidden')); }
+
+function gradeExam() { clearInterval(timerInterval); let correctCount = 0; let secScores = [0, 0, 0, 0, 0]; for (let i = 0; i < 50; i++) { const selected = document.querySelector(`input[name="q${i}"]:checked`); const li = document.getElementById(`q-${i}`); if (li) { const isCorrect = selected && selected.value === correctAnswersMap[i]; if (isCorrect) { correctCount++; li.classList.add('correct'); li.classList.remove('incorrect'); secScores[Math.floor(i / 10)]++; } else { li.classList.add('incorrect'); li.classList.remove('correct'); } } } const score = correctCount; const successRate = Math.round((score / 50) * 100); document.getElementById('res-total').textContent = `${score} / 50`; document.getElementById('res-name').textContent = document.getElementById('studentName').value || (currentLang === 'ar' ? 'طالب' : 'Student'); document.getElementById('res-date').textContent = document.getElementById('examDate').value || new Date().toLocaleDateString(currentLang === 'ar' ? 'ar-AE' : 'en-US'); for (let i = 0; i < 5; i++) { document.getElementById(`sec${i + 1}-score`).textContent = `${secScores[i]}/10`; } const badge = document.getElementById('success-badge'); const percent = document.getElementById('success-percent'); percent.textContent = `${successRate}%`; if (currentLang === 'ar') { if (successRate >= 90) { badge.textContent = 'ممتاز'; badge.className = 'success-badge grade-excellent'; } else if (successRate >= 75) { badge.textContent = 'جيد جداً'; badge.className = 'success-badge grade-good'; } else if (successRate >= 50) { badge.textContent = 'جيد'; badge.className = 'success-badge grade-pass'; } else { badge.textContent = 'يحتاج تحسين'; badge.className = 'success-badge grade-fail'; } } else { if (successRate >= 90) { badge.textContent = 'Excellent'; badge.className = 'success-badge grade-excellent'; } else if (successRate >= 75) { badge.textContent = 'Very Good'; badge.className = 'success-badge grade-good'; } else if (successRate >= 50) { badge.textContent = 'Good'; badge.className = 'success-badge grade-pass'; } else { badge.textContent = 'Needs Improvement'; badge.className = 'success-badge grade-fail'; } } document.getElementById('results-panel').classList.remove('hidden'); document.getElementById('results-panel').scrollIntoView({ behavior: 'smooth' }); document.getElementById('sendEmailBtn').classList.remove('hidden'); }
+
+function sendResultsToEmail() { const name = document.getElementById('studentName').value.trim(); if (!name) { alert(currentLang === 'ar' ? '⚠️ يرجى إدخال اسم الطالب أولاً.' : '⚠️ Please enter student name first.'); return; } const btn = document.getElementById('sendEmailBtn'); const status = document.getElementById('emailStatus'); btn.disabled = true; btn.textContent = currentLang === 'ar' ? '⏳ جاري الإرسال...' : '📤 Sending...'; const studentClass = document.getElementById('studentClass').value || 'N/A'; const date = document.getElementById('examDate').value || new Date().toLocaleDateString(); const score = document.getElementById('res-total').textContent; const successRate = document.getElementById('success-percent').textContent; const badge = document.getElementById('success-badge').textContent; const templateParams = { to_email: TARGET_EMAIL, student_name: name, student_class: studentClass, exam_date: date, total_score: score, success_rate: successRate, grade: badge }; emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams).then(() => { status.textContent = currentLang === 'ar' ? '✅ تم إرسال النتائج بنجاح!' : '✅ Results sent successfully!'; status.style.color = '#059669'; btn.textContent = currentLang === 'ar' ? '✓ تم الإرسال' : '✓ Sent'; }).catch(err => { status.textContent = currentLang === 'ar' ? '❌ فشل الإرسال' : '❌ Failed to send'; status.style.color = '#dc2626'; btn.disabled = false; btn.textContent = currentLang === 'ar' ? '📧 إعادة المحاولة' : '📧 Retry'; console.error('EmailJS Error:', err); }); }
+
+window.addEventListener('DOMContentLoaded', () => { document.getElementById('examDate').valueAsDate = new Date(); prepareShuffledExam(); renderExam(); startTimer(); });
+</script>
+</body>
+</html>
